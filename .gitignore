@@ -1,0 +1,14 @@
+.deprecated
+.vscode
+outputs
+model
+checkpoints
+trained_models
+data
+wandb
+generated
+translated
+verl
+LLaMA-Factory
+infer_eval
+plot/results
