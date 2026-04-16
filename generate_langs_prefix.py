@@ -27,20 +27,39 @@ logger = logging.getLogger(__name__)
 max_model_len = 8192
 
 lang_adopt_rates = dict()
+
+# for qwen3-32b
+# lang_adopt_rates = {
+#     "en": 0.18,
+#     "zh": 0.08,
+#     "es": 0.28,
+#     "fr": 0.21,
+#     "de": 0.21,
+#     "ja": 0.27,
+#     "ru": 0.20,
+#     "it": 0.23,
+#     "pt": 0.07,
+#     "ko": 0.39,
+#     "ar": 0.13,
+#     "th": 0.30,
+#     "vi": 0.30
+# }
+
+# for olmo3-32b-think
 lang_adopt_rates = {
-    "en": 0.18,
-    "zh": 0.08,
-    "es": 0.28,
-    "fr": 0.21,
-    "de": 0.21,
-    "ja": 0.27,
-    "ru": 0.20,
-    "it": 0.23,
-    "pt": 0.07,
-    "ko": 0.39,
-    "ar": 0.13,
-    "th": 0.30,
-    "vi": 0.30
+    "en": 0.23,
+    "zh": 0.19,
+    "es": 0.04,
+    "fr": 0.08,
+    "de": 0.04,
+    "ja": 0.06,
+    "ru": 0.13,
+    "it": 0.10,
+    "pt": 0.09,
+    "ko": 0.06,
+    "ar": 0.02,
+    "th": 0.07,
+    "vi": 0.09
 }
 
 lang_prefixes = {
