@@ -21,11 +21,18 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 max_model_len = 8192
 
+# lang_prefixes = {
+#     "id": "Oke",
+#     "he": "בסדר",
+#     "ro": "În regulă",
+#     "sw": "Sawa"
+# }
+
 lang_prefixes = {
-    "id": "Oke",
-    "he": "בסדר",
-    "ro": "În regulă",
-    "sw": "Sawa"
+    "id": "Mari kita pikirkan masalah ini dalam bahasa Indonesia.",
+    "he": "בואו נחשוב על הבעיה הזו בעברית.",
+    "ro": "Să ne gândim la această problemă în limba românească.",
+    "sw": "Hebu tufikirie tatizo hili kwa Kiswahili."
 }
 
 def generate_responses(lang, llm_instance, tokenizer_instance, batch, generation_params, lang_select=False):
@@ -139,7 +146,7 @@ def main():
 
     # save results for further evaluation
     if not args.lang_select:
-        results_output_path = Path(args.output_dir) / "results" / f"{args.dataset}_ood_prefix.jsonl"
+        results_output_path = Path(args.output_dir) / "results" / f"{args.dataset}_ood_prefix_mod2.jsonl"
     else:
         results_output_path = Path(args.output_dir) / "results" / f"{args.dataset}_ood_select.jsonl"
     with open(results_output_path, 'w', encoding='utf-8') as f:

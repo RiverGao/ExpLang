@@ -8,24 +8,60 @@ from lingua import Language, LanguageDetectorBuilder
 from transformers import AutoTokenizer
 
 
+# prefixes_to_langs = {
+#     "Okay": "en",
+#     "好的": "zh",
+#     "De acuerdo": "es",
+#     "D'accord": "fr",
+#     "In Ordnung": "de",
+#     "わかりました": "ja",
+#     "Хорошо": "ru",
+#     "Va bene": "it",
+#     "Tudo bem": "pt",
+#     "알겠습니다": "ko",
+#     "حسنًا": "ar",
+#     "ตกลง": "th",
+#     "Được rồi": "vi",
+#     "Oke": "id",
+#     "בסדר": "he",
+#     "În regulă": "ro",
+#     "Sawa": "sw"
+# }
+
+# prefixes_to_langs = {
+#     "Let's think about this problem in English.": "en",
+#     "Let's think about this problem in Chinese.": "zh",
+#     "Let's think about this problem in Spanish.": "es",
+#     "Let's think about this problem in French.": "fr",
+#     "Let's think about this problem in German.": "de",
+#     "Let's think about this problem in Japanese.": "ja",
+#     "Let's think about this problem in Russian.": "ru",
+#     "Let's think about this problem in Italian.": "it",
+#     "Let's think about this problem in Portuguese.": "pt",
+#     "Let's think about this problem in Korean.": "ko",
+#     "Let's think about this problem in Arabic.": "ar",
+#     "Let's think about this problem in Thai.": "th",
+#     "Let's think about this problem in Vietnamese.": "vi"
+# }
+
 prefixes_to_langs = {
-    "Okay": "en",
-    "好的": "zh",
-    "De acuerdo": "es",
-    "D'accord": "fr",
-    "In Ordnung": "de",
-    "わかりました": "ja",
-    "Хорошо": "ru",
-    "Va bene": "it",
-    "Tudo bem": "pt",
-    "알겠습니다": "ko",
-    "حسنًا": "ar",
-    "ตกลง": "th",
-    "Được rồi": "vi",
-    "Oke": "id",
-    "בסדר": "he",
-    "În regulă": "ro",
-    "Sawa": "sw"
+    "Let's think about this problem in English.": "en",
+    "让我们用中文思考这个问题。": "zh",
+    "Pensemos en este problema en español.": "es",
+    "Réfléchissons à ce problème en français.": "fr",
+    "Lasst uns dieses Problem auf Deutsch betrachten.": "de",
+    "この問題を日本語で考えてみましょう。": "ja",
+    "Давайте рассмотрим эту проблему на русском языке.": "ru",
+    "Riflettiamo su questo problema in italiano.": "it",
+    "Vamos pensar sobre este problema em português.": "pt",
+    "이 문제를 한국어로 생각해 봅시다.": "ko",
+    "دعونا نفكر في هذه المشكلة باللغة العربية.": "ar",
+    "ลองมาพิจารณาปัญหานี้ในมุมมองของภาษาไทยกัน": "th",
+    "Chúng ta hãy cùng suy nghĩ về vấn đề này bằng tiếng Việt.": "vi",
+    "Mari kita pikirkan masalah ini dalam bahasa Indonesia.": "id",
+    "בואו נחשוב על הבעיה הזו בעברית.": "he",
+    "Să ne gândim la această problemă în limba românească.": "ro",
+    "Hebu tufikirie tatizo hili kwa Kiswahili.": "sw"   
 }
 
 selection_pattern = re.compile(r"<lang_select>\n(.*?)\n</lang_select>")
@@ -150,6 +186,9 @@ def evaluate_one_sample(tokenizer_instance, sample, language, control_method, fi
         correctness_results[expected_lang].append(is_correct)
         
         thinking_len = len(tokenizer_instance(thinking_text, add_special_tokens=False)["input_ids"])
+        # if thinking_len > 4096:
+        #     breakpoint()
+        # thinking_len = len(thinking_text.strip())  # count character numbers
         length_results.append(thinking_len)
 
         if filter_outputs:
@@ -165,7 +204,7 @@ def evaluate_one_sample(tokenizer_instance, sample, language, control_method, fi
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Evaluate model responses against ground truth answers and give accuracy and pass@k.")
     parser.add_argument('--input_file', type=str, required=True, help='Path to the input jsonl file containing samples.')
-    parser.add_argument('--language', type=str, default='en', help='en or multilingual')
+    parser.add_argument('--language', type=str, default='en', help='en or multilingual or self')
     parser.add_argument('--control_method', type=str, default='prefiex', help='prefix or lang_select')
     parser.add_argument('--model_path', type=str, default='model/Qwen3-4B', help='path of the model (to get tokenizer)')
     parser.add_argument('--filter_outputs', action='store_true', help='Whether to filter outputs to only compliant and correct ones.')
@@ -249,18 +288,18 @@ if __name__ == "__main__":
     overall_passk = sum(all_passk) / len(all_passk)
     overall_compliance = sum(all_compliance) / len(all_compliance)
     overall_length = sum(all_lengths) / len(all_lengths)
-    print(f"Overall Accuracy: {overall_acc:.4f}")
-    print(f"Overall Pass@k: {overall_passk:.4f}")
-    print(f"Overall Thinking Length: {overall_length:.4f}")
-    print(f"Overall Language Compliance: {overall_compliance:.4f}")
+    print(f"Overall Accuracy: {100 * overall_acc:.1f}")
+    print(f"Overall Pass@k: {100 * overall_passk:.1f}")
+    print(f"Overall Thinking Length: {overall_length:.1f}")
+    print(f"Overall Language Compliance: {100 * overall_compliance:.1f}")
 
     # for lang in prefixes_to_langs.values():
     #     if lang in per_language_acc:
     #         results = per_language_acc[lang]
     #         lang_acc = sum(results) / len(results)
-    #         lang_chosen_rate = len(results) / (len(samples) * (len(prefixes_to_langs) - 1))
+    #         lang_chosen_rate = len(results) / (len(samples) * 12)
     #     else:
     #         lang_acc = 0.0
     #         lang_chosen_rate = 0.0
-    #     print(f"Lang {lang} Acc: {lang_acc:.4f};\tRate: {lang_chosen_rate*100:.2f}%")
+    #     print(f"Lang {lang} Acc: {100 * lang_acc:.1f};\tRate: {lang_chosen_rate * 100:.1f}%")
 

@@ -12,3 +12,4 @@ verl
 LLaMA-Factory
 infer_eval
 plot/results
+run_new_multi_infers_*.sh

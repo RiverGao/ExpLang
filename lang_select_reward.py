@@ -280,6 +280,291 @@ def compute_score_exploit(data_sources, solution_strs, ground_truths, extra_info
     rw = np.array(r1s) + np.array(r2s) + np.array(r3s) + np.array(p3s)
     return rw
 
+
+def compute_score_exploit_acc(data_sources, solution_strs, ground_truths, extra_infos=None, timeout_score=0.0):
+    # batch compute, return list
+    # the reward function contains 4 parts:
+    # 1. thinking language selection: should have <lang_select> [lang] </lang_select> in the beginning
+    # 2. thinking language compliance: the language of the thinking trace must be consistent with the selection
+    # 3. final answer pass@k: the final answer pass@k should be high winthin the language
+
+    rfs = []
+    rcs = []
+    rvs = []  # pass@1
+    ras = []  # mean acc over k
+    thinking_traces = []
+    target_langs = []
+    taget_langs_correctness = dict()
+
+    for ss, gt in zip(solution_strs, ground_truths):
+        # thinking language selection
+        select_match = select_pattern.search(ss)
+        if select_match:
+            rf = 0.2
+            # breakpoint()
+            target_lang = select_match.group(1)
+        else:
+            rf = 0.0
+            target_lang = "None"
+        rfs.append(rf)
+        target_langs.append(target_lang)
+
+        # final answer correctness
+        verify_func = math_metric(
+            gold_extraction_target=(LatexExtractionConfig(),),
+            pred_extraction_target=(ExprExtractionConfig(), LatexExtractionConfig()),
+        )
+        gt_boxed = "\\boxed{" + gt + "}"
+        rv = 0.0
+        try:
+            rv, _ = verify_func([gt_boxed], [ss])  # 0.0 or 1.0
+        except Exception:
+            pass
+        except TimeoutException:
+            rv = timeout_score
+            print(f"Timeout sample: [GROUND TRUTH] {gt_boxed}\n[RESPONSE STR] {ss}")
+        
+        rvs.append(rv)
+        if target_lang not in taget_langs_correctness:
+            taget_langs_correctness[target_lang] = [rv]
+        else:
+            taget_langs_correctness[target_lang].append(rv)
+
+        # thinking language compliance
+        thinking_part_match = think_pattern.search(ss)
+        if not thinking_part_match:
+            # check if thinking part exists but </think> is missing
+            if "<think>" in ss:
+                thinking_trace = ss.split("<think>")[-1]
+            else:
+                # raise ValueError(f"Thinking part not found in output: {solution_str}")
+                thinking_trace = ""
+        else:
+            thinking_trace = thinking_part_match.group(1).strip()
+        thinking_traces.append(thinking_trace)
+    
+    # compute pass@k per language
+    for target_lang in target_langs:
+        correctness_list = taget_langs_correctness.get(target_lang, [])
+        acc = np.mean(correctness_list)
+        ras.append(acc)
+
+    # breakpoint()
+    # thinking lanugage compliance
+    thinking_langs = detector.detect_languages_in_parallel_of(thinking_traces)
+    for thinking_lang, target_lang in zip(thinking_langs, target_langs):
+        if thinking_lang and thinking_lang.iso_code_639_1.name.lower() == target_lang:
+            rc = 0.2
+        else:
+            rc = 0.0
+        rcs.append(rc)
+
+    # total reward
+    # breakpoint()
+    rw = np.array(rfs) + np.array(rcs) + np.array(rvs) + np.array(ras)
+    return rw
+
+def compute_score_mixed(data_sources, solution_strs, ground_truths, extra_infos=None, timeout_score=0.0):
+    # batch compute, return list
+    # the reward function contains 4 parts:
+    # 1. thinking language selection: should have <lang_select> [lang] </lang_select> in the beginning
+    # 2. thinking language compliance: the language of the thinking trace must be consistent with the selection
+    # 3. final answer pass@k: the final answer pass@k should be high winthin the language
+    # 4. thinking language diversity: encourage different thinking languages in one batch
+
+    rfs = []  # format
+    rcs = []  # compliance
+    rvs = []  # verified pass@1
+    rps = []  # pass@k
+    rds = []  # diversity
+    thinking_traces = []
+    target_langs = []
+    target_langs_count = dict()
+    taget_langs_correctness = dict()
+
+    for ss, gt in zip(solution_strs, ground_truths):
+        # thinking language selection
+        select_match = select_pattern.search(ss)
+        if select_match:
+            rf = 0.2
+            # breakpoint()
+            target_lang = select_match.group(1)
+        else:
+            rf = 0.0
+            target_lang = "None"
+        rfs.append(rf)
+        target_langs.append(target_lang)
+        if target_lang:
+            if target_lang not in target_langs_count:
+                target_langs_count[target_lang] = 1
+            else:
+                target_langs_count[target_lang] += 1
+
+        # final answer correctness
+        verify_func = math_metric(
+            gold_extraction_target=(LatexExtractionConfig(),),
+            pred_extraction_target=(ExprExtractionConfig(), LatexExtractionConfig()),
+        )
+        gt_boxed = "\\boxed{" + gt + "}"
+        rv = 0.0
+        try:
+            rv, _ = verify_func([gt_boxed], [ss])  # 0.0 or 1.0
+            rv = rv * 0.5  # for correct samples, r3 + p3 = 1.0
+        except Exception:
+            pass
+        except TimeoutException:
+            rv = timeout_score
+            print(f"Timeout sample: [GROUND TRUTH] {gt_boxed}\n[RESPONSE STR] {ss}")
+        
+        rvs.append(rv)
+        if target_lang not in taget_langs_correctness:
+            taget_langs_correctness[target_lang] = [rv]
+        else:
+            taget_langs_correctness[target_lang].append(rv)
+
+        # thinking language compliance
+        thinking_part_match = think_pattern.search(ss)
+        if not thinking_part_match:
+            # check if thinking part exists but </think> is missing
+            if "<think>" in ss:
+                thinking_trace = ss.split("<think>")[-1]
+            else:
+                # raise ValueError(f"Thinking part not found in output: {solution_str}")
+                thinking_trace = ""
+        else:
+            thinking_trace = thinking_part_match.group(1).strip()
+        thinking_traces.append(thinking_trace)
+    
+    # compute pass@k per language
+    for target_lang in target_langs:
+        correctness_list = taget_langs_correctness.get(target_lang, [])
+        passk = 0.5 if any(correctness_list) else 0.0
+        rps.append(passk)
+
+    # breakpoint()
+    # thinking lanugage compliance
+    thinking_langs = detector.detect_languages_in_parallel_of(thinking_traces)
+    n_batch_samples = len(target_langs)
+    for thinking_lang, target_lang in zip(thinking_langs, target_langs):
+        if thinking_lang and thinking_lang.iso_code_639_1.name.lower() == target_lang:
+            rc = 0.2
+            if target_lang in lang_list:
+                rd = n_batch_samples / target_langs_count[target_lang]
+            else:
+                rd = 0.0
+        else:
+            rc = 0.0
+            rd = 0.0
+        rcs.append(rc)
+        rds.append(rd)
+    rds_norm = 0.2 * np.array(rds)  / max(rds)
+
+    # total reward
+    # breakpoint()
+    rw = np.array(rfs) + np.array(rcs) + np.array(rvs) + np.array(rps) + rds_norm
+    return rw
+
+def compute_score_v4a(data_sources, solution_strs, ground_truths, extra_infos=None, timeout_score=0.0):
+    # batch compute, return list
+    # the reward function contains 4 parts:
+    # 1. thinking language selection: should have <lang_select> [lang] </lang_select> in the beginning
+    # 2. thinking language compliance: the language of the thinking trace must be consistent with the selection
+    # 3. final answer pass@k: the final answer pass@k should be high winthin the language
+    # 4. thinking language diversity: encourage different thinking languages in one batch
+
+    rfs = []  # format
+    rcs = []  # compliance
+    rvs = []  # verified pass@1
+    ras = []  # mean acc of k
+    rds = []  # diversity
+    thinking_traces = []
+    target_langs = []
+    target_langs_count = dict()
+    taget_langs_correctness = dict()
+
+    for ss, gt in zip(solution_strs, ground_truths):
+        # thinking language selection
+        select_match = select_pattern.search(ss)
+        if select_match:
+            rf = 0.2
+            # breakpoint()
+            target_lang = select_match.group(1)
+        else:
+            rf = 0.0
+            target_lang = "None"
+        rfs.append(rf)
+        target_langs.append(target_lang)
+        if target_lang:
+            if target_lang not in target_langs_count:
+                target_langs_count[target_lang] = 1
+            else:
+                target_langs_count[target_lang] += 1
+
+        # final answer correctness
+        verify_func = math_metric(
+            gold_extraction_target=(LatexExtractionConfig(),),
+            pred_extraction_target=(ExprExtractionConfig(), LatexExtractionConfig()),
+        )
+        gt_boxed = "\\boxed{" + gt + "}"
+        rv = 0.0
+        try:
+            rv, _ = verify_func([gt_boxed], [ss])  # 0.0 or 1.0
+            rv = rv * 0.5  # for correct samples, r3 + p3 = 1.0
+        except Exception:
+            pass
+        except TimeoutException:
+            rv = timeout_score
+            print(f"Timeout sample: [GROUND TRUTH] {gt_boxed}\n[RESPONSE STR] {ss}")
+        
+        rvs.append(rv)
+        if target_lang not in taget_langs_correctness:
+            taget_langs_correctness[target_lang] = [rv]
+        else:
+            taget_langs_correctness[target_lang].append(rv)
+
+        # thinking language compliance
+        thinking_part_match = think_pattern.search(ss)
+        if not thinking_part_match:
+            # check if thinking part exists but </think> is missing
+            if "<think>" in ss:
+                thinking_trace = ss.split("<think>")[-1]
+            else:
+                # raise ValueError(f"Thinking part not found in output: {solution_str}")
+                thinking_trace = ""
+        else:
+            thinking_trace = thinking_part_match.group(1).strip()
+        thinking_traces.append(thinking_trace)
+    
+    # compute pass@k per language
+    for target_lang in target_langs:
+        correctness_list = taget_langs_correctness.get(target_lang, [])
+        acc = np.mean(correctness_list)
+        ras.append(acc)
+
+    # breakpoint()
+    # thinking lanugage compliance
+    thinking_langs = detector.detect_languages_in_parallel_of(thinking_traces)
+    n_batch_samples = len(target_langs)
+    for thinking_lang, target_lang in zip(thinking_langs, target_langs):
+        if thinking_lang and thinking_lang.iso_code_639_1.name.lower() == target_lang:
+            rc = 0.2
+            if target_lang in lang_list:
+                rd = n_batch_samples / target_langs_count[target_lang]
+            else:
+                rd = 0.0
+        else:
+            rc = 0.0
+            rd = 0.0
+        rcs.append(rc)
+        rds.append(rd)
+    rds_norm = 0.2 * np.array(rds)  / max(rds)
+
+    # total reward
+    # breakpoint()
+    rw = np.array(rfs) + np.array(rcs) + np.array(rvs) + np.array(ras) + rds_norm
+    return rw
+
+
 if __name__ == "__main__":
     # unit test
     data_sources = ["default"] * 3

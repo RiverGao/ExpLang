@@ -26,21 +26,53 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 max_model_len = 8192
 
+# lang_prefixes = {
+#     "en": "Okay",
+#     "zh": "好的",
+#     "es": "De acuerdo",
+#     "fr": "D'accord",
+#     "de": "In Ordnung",
+#     "ja": "わかりました",
+#     "ru": "Хорошо",
+#     "it": "Va bene",
+#     "pt": "Tudo bem",
+#     "ko": "알겠습니다",
+#     "ar": "حسنًا",
+#     "th": "ตกลง",
+#     "vi": "Được rồi"
+# }
+
 lang_prefixes = {
-    "en": "Okay",
-    "zh": "好的",
-    "es": "De acuerdo",
-    "fr": "D'accord",
-    "de": "In Ordnung",
-    "ja": "わかりました",
-    "ru": "Хорошо",
-    "it": "Va bene",
-    "pt": "Tudo bem",
-    "ko": "알겠습니다",
-    "ar": "حسنًا",
-    "th": "ตกลง",
-    "vi": "Được rồi"
+    "en": "Let's think about this problem in English.",
+    "zh": "Let's think about this problem in Chinese.",
+    "es": "Let's think about this problem in Spanish.",
+    "fr": "Let's think about this problem in French.",
+    "de": "Let's think about this problem in German.",
+    "ja": "Let's think about this problem in Japanese.",
+    "ru": "Let's think about this problem in Russian.",
+    "it": "Let's think about this problem in Italian.",
+    "pt": "Let's think about this problem in Portuguese.",
+    "ko": "Let's think about this problem in Korean.",
+    "ar": "Let's think about this problem in Arabic.",
+    "th": "Let's think about this problem in Thai.",
+    "vi": "Let's think about this problem in Vietnamese."
 }
+
+# lang_prefixes = {
+#     "en": "Let's think about this problem in English.",
+#     "zh": "让我们用中文思考这个问题。",
+#     "es": "Pensemos en este problema en español.",
+#     "fr": "Réfléchissons à ce problème en français.",
+#     "de": "Lasst uns dieses Problem auf Deutsch betrachten.",
+#     "ja": "この問題を日本語で考えてみましょう。",
+#     "ru": "Давайте рассмотрим эту проблему на русском языке.",
+#     "it": "Riflettiamo su questo problema in italiano.",
+#     "pt": "Vamos pensar sobre este problema em português.",
+#     "ko": "이 문제를 한국어로 생각해 봅시다.",
+#     "ar": "دعونا نفكر في هذه المشكلة باللغة العربية.",
+#     "th": "ลองมาพิจารณาปัญหานี้ในมุมมองของภาษาไทยกัน",
+#     "vi": "Chúng ta hãy cùng suy nghĩ về vấn đề này bằng tiếng Việt."
+# }
 
 verify_func = math_metric(
     gold_extraction_target=(LatexExtractionConfig(),),
@@ -249,7 +281,7 @@ def main():
 
     # save results for further evaluation
     if not args.lang_select:
-        results_output_path = Path(args.output_dir) / "results" / f"interested_{args.dataset}_multilingual_prefix.txt"
+        results_output_path = Path(args.output_dir) / "results" / f"interested_{args.dataset}_multilingual_prefix_mod1.txt"
     else:
         results_output_path = Path(args.output_dir) / "results" / f"interested_{args.dataset}_multilingual_select.txt"
     with open(results_output_path, 'w', encoding='utf-8') as f:
